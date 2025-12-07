@@ -23,42 +23,6 @@ export const transporters = [
   { id: "primelogistics", name: "Prime Logistics", consignorId: "umbrella" },
 ];
 
-export const configs = [
-  {
-    id: "config-1",
-    moduleId: "freight",
-    consignorId: null,
-    transporterId: null,
-    level: "module",
-    prompt: "Extract shipment details including sender, receiver, weight, and dimensions.",
-    version: 3,
-    createdAt: "2024-01-15",
-    updatedAt: "2024-03-10",
-  },
-  {
-    id: "config-2",
-    moduleId: "freight",
-    consignorId: "acme",
-    transporterId: null,
-    level: "consignor",
-    prompt: "Extract ACME shipment details with special attention to hazmat codes and insurance values.",
-    version: 2,
-    createdAt: "2024-02-01",
-    updatedAt: "2024-03-05",
-  },
-  {
-    id: "config-3",
-    moduleId: "freight",
-    consignorId: "acme",
-    transporterId: "fastship",
-    level: "transporter",
-    prompt: "Extract FastShip BOL with priority handling codes and express delivery markers.",
-    version: 1,
-    createdAt: "2024-03-01",
-    updatedAt: "2024-03-01",
-  },
-];
-
 export const standardFields = [
   { id: "shipment_id", name: "Shipment ID", type: "string", mandatory: true },
   { id: "sender_name", name: "Sender Name", type: "string", mandatory: true },
@@ -74,17 +38,6 @@ export const standardFields = [
   { id: "insurance_value", name: "Insurance Value", type: "number", mandatory: false },
   { id: "special_instructions", name: "Special Instructions", type: "string", mandatory: false },
   { id: "priority", name: "Priority Level", type: "string", mandatory: false },
-];
-
-export const fieldMappings = [
-  { fieldId: "shipment_id", jsonPath: "$.document.shipment_number", transform: "trim", confidence: 95 },
-  { fieldId: "sender_name", jsonPath: "$.sender.name", transform: "uppercase", confidence: 92 },
-  { fieldId: "sender_address", jsonPath: "$.sender.full_address", transform: "trim", confidence: 88 },
-  { fieldId: "receiver_name", jsonPath: "$.receiver.name", transform: "uppercase", confidence: 94 },
-  { fieldId: "receiver_address", jsonPath: "$.receiver.full_address", transform: "trim", confidence: 87 },
-  { fieldId: "weight", jsonPath: "$.package.weight_kg", transform: "number", confidence: 96 },
-  { fieldId: "ship_date", jsonPath: "$.dates.shipped", transform: "date", confidence: 91 },
-  { fieldId: "tracking_number", jsonPath: "$.tracking.id", transform: "trim", confidence: 98 },
 ];
 
 export const sampleOcrOutput = {
@@ -122,89 +75,137 @@ export const sampleOcrOutput = {
   },
 };
 
-export const validationRules = [
-  { id: "rule-1", field: "weight", operator: "greater_than", value: "0", action: "error", message: "Weight must be positive" },
-  { id: "rule-2", field: "ship_date", operator: "not_empty", value: "", action: "error", message: "Ship date is required" },
-  { id: "rule-3", field: "insurance_value", operator: "greater_than", value: "10000", action: "warning", message: "High value shipment - verify insurance" },
-  { id: "rule-4", field: "hazmat_code", operator: "matches", value: "^HAZ-[A-Z]{2}[0-9]{3}$", action: "error", message: "Invalid hazmat code format" },
-];
-
-export const auditTrail = [
-  {
-    id: "audit-1",
-    timestamp: "2024-03-15T14:32:00Z",
-    user: "admin@ocrconfig.com",
-    action: "Prompt Updated",
-    entity: "Config: Freight > ACME",
-    changeType: "prompt",
-    before: "Extract shipment details...",
-    after: "Extract ACME shipment details with special attention...",
-  },
-  {
-    id: "audit-2",
-    timestamp: "2024-03-14T10:15:00Z",
-    user: "operator@ocrconfig.com",
-    action: "Field Mapping Added",
-    entity: "Mapping: hazmat_code",
-    changeType: "mapping",
-    before: null,
-    after: "$.package.hazmat_classification",
-  },
-  {
-    id: "audit-3",
-    timestamp: "2024-03-13T16:45:00Z",
-    user: "admin@ocrconfig.com",
-    action: "Validation Rule Created",
-    entity: "Rule: Weight Validation",
-    changeType: "validation",
-    before: null,
-    after: "weight > 0 → error",
-  },
-  {
-    id: "audit-4",
-    timestamp: "2024-03-12T09:20:00Z",
-    user: "manager@ocrconfig.com",
-    action: "Mandatory Field Changed",
-    entity: "Field: insurance_value",
-    changeType: "mandatory",
-    before: "Optional",
-    after: "Mandatory",
-  },
-  {
-    id: "audit-5",
-    timestamp: "2024-03-11T11:00:00Z",
-    user: "admin@ocrconfig.com",
-    action: "Config Cloned",
-    entity: "Config: Freight > Globex",
-    changeType: "config",
-    before: "Cloned from: Freight > ACME",
-    after: "New config created",
-  },
-];
-
-export const promptVersions = [
-  { version: 1, date: "2024-01-15", prompt: "Extract basic shipment information from the document." },
-  { version: 2, date: "2024-02-10", prompt: "Extract shipment details including sender, receiver, weight, and dimensions." },
-  { version: 3, date: "2024-03-10", prompt: "Extract shipment details including sender, receiver, weight, and dimensions. Pay special attention to tracking numbers and delivery dates." },
-];
-
-export const dashboardStats = {
-  activeConfigs: 12,
-  pendingMappings: 3,
-  testRunsToday: 47,
-  errorRate: 2.3,
-  successfulMappings: 156,
-  configHealth: {
-    healthy: 9,
-    warning: 2,
-    error: 1,
-  },
+// Extract all JSON paths from sample output for suggestions
+export const extractJsonPaths = (obj: Record<string, unknown>, prefix = "$"): string[] => {
+  const paths: string[] = [];
+  for (const key in obj) {
+    const path = `${prefix}.${key}`;
+    const value = obj[key];
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      paths.push(...extractJsonPaths(value as Record<string, unknown>, path));
+    } else {
+      paths.push(path);
+    }
+  }
+  return paths;
 };
 
-export const recentActivity = [
-  { id: 1, action: "Config updated", target: "Freight > ACME > FastShip", user: "admin", time: "2 hours ago" },
-  { id: 2, action: "OCR test run", target: "Warehouse > Initech", user: "operator", time: "3 hours ago" },
-  { id: 3, action: "Mapping fixed", target: "Distribution > Umbrella", user: "admin", time: "5 hours ago" },
-  { id: 4, action: "New config created", target: "Customs > Wayne", user: "manager", time: "Yesterday" },
-  { id: 5, action: "Validation rule added", target: "Freight module", user: "admin", time: "Yesterday" },
+export const jsonPathSuggestions = extractJsonPaths(sampleOcrOutput);
+
+// Configs with updatedBy field for the Config List
+export interface Config {
+  id: string;
+  moduleId: string;
+  consignorId: string | null;
+  transporterId: string | null;
+  prompt: string;
+  mappings: Record<string, { jsonPath: string; mandatory: boolean }>;
+  updatedAt: string;
+  updatedBy: string;
+  hasCustomPrompt: boolean;
+}
+
+export const configs: Config[] = [
+  {
+    id: "config-1",
+    moduleId: "freight",
+    consignorId: "acme",
+    transporterId: null,
+    prompt: "Extract ACME shipment details with special attention to hazmat codes and insurance values. Include sender/receiver info, weights, and tracking numbers.",
+    mappings: {
+      shipment_id: { jsonPath: "$.document.shipment_number", mandatory: true },
+      sender_name: { jsonPath: "$.sender.name", mandatory: true },
+      sender_address: { jsonPath: "$.sender.full_address", mandatory: true },
+      receiver_name: { jsonPath: "$.receiver.name", mandatory: true },
+      weight: { jsonPath: "$.package.weight_kg", mandatory: true },
+      tracking_number: { jsonPath: "$.tracking.id", mandatory: true },
+    },
+    updatedAt: "2024-03-15",
+    updatedBy: "admin@company.com",
+    hasCustomPrompt: true,
+  },
+  {
+    id: "config-2",
+    moduleId: "freight",
+    consignorId: "acme",
+    transporterId: "fastship",
+    prompt: "Extract FastShip BOL with priority handling codes and express delivery markers. Pay attention to special instructions.",
+    mappings: {
+      shipment_id: { jsonPath: "$.document.shipment_number", mandatory: true },
+      sender_name: { jsonPath: "$.sender.name", mandatory: true },
+      tracking_number: { jsonPath: "$.tracking.id", mandatory: true },
+      priority: { jsonPath: "$.tracking.service", mandatory: false },
+    },
+    updatedAt: "2024-03-14",
+    updatedBy: "operator@company.com",
+    hasCustomPrompt: true,
+  },
+  {
+    id: "config-3",
+    moduleId: "freight",
+    consignorId: "globex",
+    transporterId: null,
+    prompt: "Extract Globex shipment information including all dimensional data and insurance values.",
+    mappings: {
+      shipment_id: { jsonPath: "$.document.shipment_number", mandatory: true },
+      sender_name: { jsonPath: "$.sender.name", mandatory: true },
+      dimensions: { jsonPath: "$.package.dimensions_cm", mandatory: true },
+    },
+    updatedAt: "2024-03-12",
+    updatedBy: "admin@company.com",
+    hasCustomPrompt: true,
+  },
+  {
+    id: "config-4",
+    moduleId: "warehouse",
+    consignorId: "initech",
+    transporterId: null,
+    prompt: "Extract warehouse receipt details including storage location and inventory counts.",
+    mappings: {
+      shipment_id: { jsonPath: "$.document.shipment_number", mandatory: true },
+      receiver_name: { jsonPath: "$.receiver.name", mandatory: true },
+    },
+    updatedAt: "2024-03-10",
+    updatedBy: "manager@company.com",
+    hasCustomPrompt: true,
+  },
+  {
+    id: "config-5",
+    moduleId: "warehouse",
+    consignorId: "initech",
+    transporterId: "quickhaul",
+    prompt: "Default warehouse prompt for QuickHaul deliveries.",
+    mappings: {
+      shipment_id: { jsonPath: "$.document.shipment_number", mandatory: true },
+    },
+    updatedAt: "2024-03-08",
+    updatedBy: "operator@company.com",
+    hasCustomPrompt: false,
+  },
+  {
+    id: "config-6",
+    moduleId: "distribution",
+    consignorId: "umbrella",
+    transporterId: null,
+    prompt: "Extract distribution manifest with route details and delivery scheduling information.",
+    mappings: {
+      shipment_id: { jsonPath: "$.document.shipment_number", mandatory: true },
+      sender_name: { jsonPath: "$.sender.name", mandatory: true },
+      receiver_name: { jsonPath: "$.receiver.name", mandatory: true },
+      delivery_date: { jsonPath: "$.dates.expected_delivery", mandatory: true },
+    },
+    updatedAt: "2024-03-05",
+    updatedBy: "admin@company.com",
+    hasCustomPrompt: true,
+  },
 ];
+
+export const defaultPrompt = `Extract the following information from the document:
+- Shipment/Document ID
+- Sender name and address
+- Receiver name and address
+- Package weight and dimensions
+- Tracking number
+- Ship date and expected delivery date
+
+Return the data in structured JSON format.`;
