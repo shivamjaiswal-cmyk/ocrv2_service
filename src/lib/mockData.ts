@@ -1,10 +1,11 @@
 // Mock data for OCR Config Studio
 
 export const modules = [
-  { id: "freight", name: "Freight" },
-  { id: "warehouse", name: "Warehouse" },
-  { id: "distribution", name: "Distribution" },
-  { id: "customs", name: "Customs" },
+  { id: "trips", name: "Trips" },
+  { id: "indent", name: "Indent" },
+  { id: "epod", name: "ePOD" },
+  { id: "lr", name: "LR" },
+  { id: "freight-invoice", name: "Freight Invoice" },
 ];
 
 export const consignors = [
