@@ -1,3 +1,5 @@
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -6,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+// ... (imports)
 import { modules, consignors, transporters } from "@/lib/mockData";
 import { Loader2 } from "lucide-react";
 
@@ -32,20 +35,23 @@ export function FilterBar({
   isLoading = false,
   configLoaded = false,
 }: FilterBarProps) {
-  const filteredConsignors = consignors.filter((c) => c.moduleId === moduleId);
-  const filteredTransporters = transporters.filter(
-    (t) => t.consignorId === consignorId
-  );
+  // We can remove filtered lists since we are using free text now, or keep them if we want to add back a combobox later. 
+  // For now, free text doesn't need them, but contextLabel uses them for name lookup.
 
   const getContextLabel = () => {
-    if (!moduleId || !consignorId) return null;
+    if (!moduleId) return null; // Consignor can be null now
     const module = modules.find((m) => m.id === moduleId);
-    const consignor = consignors.find((c) => c.id === consignorId);
-    const transporter = transporterId
-      ? transporters.find((t) => t.id === transporterId)
-      : null;
 
-    return `${module?.name} / ${consignor?.name} / ${transporter?.name || "All Transporters"}`;
+    // For context label, if we have an ID, we try to find name, else show ID.
+    const consignorName = consignorId
+      ? (consignors.find((c) => c.id === consignorId)?.name || consignorId)
+      : "All Consignors";
+
+    const transporterName = transporterId
+      ? (transporters.find((t) => t.id === transporterId)?.name || transporterId)
+      : "All Transporters";
+
+    return `${module?.name || moduleId} / ${consignorName} / ${transporterName}`;
   };
 
   const contextLabel = getContextLabel();
@@ -71,48 +77,55 @@ export function FilterBar({
 
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-muted-foreground">Consignor</label>
-          <Select
-            value={consignorId}
-            onValueChange={onConsignorChange}
-            disabled={!moduleId}
-          >
-            <SelectTrigger className="w-44 bg-background">
-              <SelectValue placeholder="Select consignor" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              {filteredConsignors.map((consignor) => (
-                <SelectItem key={consignor.id} value={consignor.id}>
-                  {consignor.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 rounded-md border p-1 bg-background">
+            <div className="flex items-center gap-1.5 px-2 border-r">
+              <Checkbox
+                id="allConsignors"
+                checked={!consignorId}
+                onCheckedChange={(checked) => {
+                  if (checked) onConsignorChange("");
+                }}
+              />
+              <label htmlFor="allConsignors" className="text-xs font-medium cursor-pointer">
+                All
+              </label>
+            </div>
+            <Input
+              value={consignorId}
+              onChange={(e) => onConsignorChange(e.target.value)}
+              placeholder="Enter ID..."
+              className="h-7 w-32 border-0 focus-visible:ring-0 px-2"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-muted-foreground">Transporter</label>
-          <Select
-            value={transporterId}
-            onValueChange={onTransporterChange}
-            disabled={!consignorId}
-          >
-            <SelectTrigger className="w-44 bg-background">
-              <SelectValue placeholder="All Transporters" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              <SelectItem value="all">All Transporters</SelectItem>
-              {filteredTransporters.map((transporter) => (
-                <SelectItem key={transporter.id} value={transporter.id}>
-                  {transporter.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 rounded-md border p-1 bg-background">
+            <div className="flex items-center gap-1.5 px-2 border-r">
+              <Checkbox
+                id="allTransporters"
+                checked={!transporterId}
+                onCheckedChange={(checked) => {
+                  if (checked) onTransporterChange("");
+                }}
+              />
+              <label htmlFor="allTransporters" className="text-xs font-medium cursor-pointer">
+                All
+              </label>
+            </div>
+            <Input
+              value={transporterId}
+              onChange={(e) => onTransporterChange(e.target.value)}
+              placeholder="Enter ID..."
+              className="h-7 w-32 border-0 focus-visible:ring-0 px-2"
+            />
+          </div>
         </div>
 
         <Button
           onClick={onLoadConfig}
-          disabled={!moduleId || !consignorId || isLoading}
+          disabled={!moduleId || isLoading}
           className="ml-auto"
         >
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

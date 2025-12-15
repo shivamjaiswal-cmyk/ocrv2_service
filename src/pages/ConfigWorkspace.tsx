@@ -36,7 +36,7 @@ export default function ConfigWorkspace() {
 
   // Load config from URL params on mount
   useEffect(() => {
-    if (searchParams.get("module") && searchParams.get("consignor")) {
+    if (searchParams.get("module")) {
       handleLoadConfig();
     }
   }, []);
@@ -59,32 +59,21 @@ export default function ConfigWorkspace() {
     setConfigLoaded(false);
   };
 
-  const handleLoadConfig = () => {
+  const handleLoadConfig = async () => {
     setIsLoading(true);
-    
-    // Simulate loading delay
-    setTimeout(() => {
-      // Find existing config
-      const existingConfig = configs.find(
-        (c) =>
-          c.moduleId === moduleId &&
-          c.consignorId === consignorId &&
-          (transporterId ? c.transporterId === transporterId : c.transporterId === null)
-      );
 
-      if (existingConfig) {
-        setPrompt(existingConfig.prompt);
-        setIsDefaultPrompt(!existingConfig.hasCustomPrompt);
-        setMappings(existingConfig.mappings);
-        toast({
-          title: "Config Loaded",
-          description: "Existing configuration has been loaded.",
-        });
-      } else {
-        // New config mode
+    try {
+      // Build query string
+      const params = new URLSearchParams({ module: moduleId });
+      if (consignorId) params.append("consignor", consignorId);
+      if (transporterId) params.append("transporter", transporterId);
+
+      const response = await fetch(`/api/ocr/config?${params.toString()}`);
+
+      if (response.status === 404) {
+        // No existing config found for this combination (or any parent), start fresh
         setPrompt(defaultPrompt);
         setIsDefaultPrompt(true);
-        // Initialize with default mandatory values
         const defaultMappings: Record<string, FieldMapping> = {};
         standardFields.forEach((field) => {
           defaultMappings[field.id] = { jsonPath: "", mandatory: field.mandatory };
@@ -92,27 +81,92 @@ export default function ConfigWorkspace() {
         setMappings(defaultMappings);
         toast({
           title: "New Config",
-          description: "Starting with default configuration. Make your changes and save.",
+          description: "No existing configuration found. Starting with defaults.",
         });
+        setConfigLoaded(true);
+        return;
       }
 
+      if (!response.ok) throw new Error("Failed to load config");
+
+      const loadedConfig = await response.json();
+
+      if (loadedConfig) {
+        setPrompt(loadedConfig.prompt || "");
+        setIsDefaultPrompt(!loadedConfig.prompt); // If prompt exists, it's custom
+
+        // Backend returns fieldMappings as string or JSON. 
+        // If it's a string, the response.json() might have kept it as string if Prisma returned string.
+        // We need to ensure it's an object.
+        let mappings = loadedConfig.fieldMappings;
+        if (typeof mappings === "string") {
+          try { mappings = JSON.parse(mappings); } catch (e) { mappings = {}; }
+        }
+
+        setMappings(mappings || {});
+        toast({
+          title: "Config Loaded",
+          description: `Loaded existing configuration.`,
+        });
+      }
       setConfigLoaded(true);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to load configuration.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
-  const handleRunOcr = () => {
+  const handleRunOcr = async (file: File) => {
     setIsRunningOcr(true);
-    
-    // Simulate OCR processing
-    setTimeout(() => {
-      setOcrOutput(sampleOcrOutput);
-      setIsRunningOcr(false);
+    setOcrOutput(null);
+
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+      });
+
+      const formData = new FormData();
+      formData.append('file', file);
+      if (moduleId) formData.append('module', moduleId);
+      if (consignorId) formData.append('consignor', consignorId);
+      if (transporterId) formData.append('transporter', transporterId);
+      if (prompt) formData.append('overridePrompt', prompt);
+
+      const response = await fetch('/api/ocr/test', {
+        method: 'POST',
+        body: formData, // fetch automatically sets Content-Type for FormData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `OCR failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setOcrOutput(data.rawOcrOutput || data); // Handle both formats just in case
       toast({
         title: "OCR Complete",
         description: "Document processed successfully. JSON output is ready for mapping.",
       });
-    }, 1500);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "OCR Failed",
+        description: error instanceof Error ? error.message : "Failed to process document",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRunningOcr(false);
+    }
   };
 
   const handleMappingChange = (fieldId: string, updates: Partial<FieldMapping>) => {
@@ -157,11 +211,36 @@ export default function ConfigWorkspace() {
     });
   };
 
-  const handleSaveConfig = () => {
-    toast({
-      title: "Config Saved",
-      description: "Configuration has been saved successfully.",
-    });
+  const handleSaveConfig = async () => {
+    try {
+      const payload = {
+        moduleCode: moduleId,
+        consignorCode: consignorId || null,
+        transporterCode: transporterId || null,
+        prompt: isDefaultPrompt ? null : prompt,
+        fieldMappings: mappings,
+      };
+
+      const response = await fetch('/api/ocr/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) throw new Error("Failed to save config");
+
+      toast({
+        title: "Config Saved",
+        description: "Configuration has been saved successfully.",
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to save configuration.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSavePrompt = () => {

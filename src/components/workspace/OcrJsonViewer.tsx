@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -63,13 +64,15 @@ export function OcrJsonViewer({ data }: OcrJsonViewerProps) {
 
       <div
         className={cn(
-          "overflow-hidden rounded-lg border bg-muted/30 transition-all",
-          isExpanded ? "max-h-[300px]" : "max-h-[60px]"
+          "rounded-lg border bg-muted/30 transition-all",
+          isExpanded ? "h-[300px]" : "h-[60px]"
         )}
       >
-        <pre className="scrollbar-thin overflow-auto p-3 text-xs text-foreground">
-          {JSON.stringify(data, null, 2)}
-        </pre>
+        <ScrollArea className="h-full w-full rounded-lg">
+          <pre className="p-4 text-xs text-foreground">
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        </ScrollArea>
       </div>
     </div>
   );

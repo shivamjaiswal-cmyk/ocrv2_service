@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model OcrModule {
+  id                    String      @id @default(uuid())
+  code                  String      @unique
+  name                  String
+  standardPayloadSchema String        // JSON string
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model OcrConfig {
+  id              String   @id @default(uuid())
+  moduleCode      String
+  consignorCode   String?
+  transporterCode String?
+  prompt          String?
+  fieldMappings   String     // JSON string
+  isActive        Boolean  @default(true)
+  createdBy       String?
+  updatedBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Composite unique constraint to prevent duplicate hierarchical configs
+  // Note: Prisma treats nulls as distinct in unique constraints in some DBs, 
+  // but for config resolution logic we manually query. 
+  // We'll add an index for faster lookups.
+  @@index([moduleCode, consignorCode, transporterCode])
+}

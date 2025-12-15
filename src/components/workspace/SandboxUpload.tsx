@@ -4,7 +4,7 @@ import { Upload, FileText, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SandboxUploadProps {
-  onRunOcr: () => void;
+  onRunOcr: (file: File) => void;
   isRunning: boolean;
   hasResult: boolean;
 }
@@ -46,7 +46,7 @@ export function SandboxUpload({ onRunOcr, isRunning, hasResult }: SandboxUploadP
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-medium text-foreground">Sample Document Upload</h3>
-      
+
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -96,7 +96,7 @@ export function SandboxUpload({ onRunOcr, isRunning, hasResult }: SandboxUploadP
       </div>
 
       <Button
-        onClick={onRunOcr}
+        onClick={() => file && onRunOcr(file)}
         disabled={!file || isRunning}
         className="w-full"
         variant={hasResult ? "outline" : "default"}
