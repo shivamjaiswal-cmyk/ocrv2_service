@@ -12,6 +12,7 @@ import { MappingTable, FieldMapping } from "@/components/workspace/MappingTable"
 import { UnmappedFieldsPanel } from "@/components/workspace/UnmappedFieldsPanel";
 import { SaveConfigModal } from "@/components/workspace/SaveConfigModal";
 import { configs, defaultPrompt, sampleOcrOutput, standardFields } from "@/lib/mockData";
+import { autoSuggestMappings } from "@/lib/utils";
 import { Save, Copy, Sparkles } from "lucide-react";
 
 export default function ConfigWorkspace() {
@@ -181,23 +182,27 @@ export default function ConfigWorkspace() {
   };
 
   const handleAutoSuggest = () => {
-    // Mock auto-suggest behavior
-    const suggestions: Record<string, string> = {
-      shipment_id: "$.document.shipment_number",
-      sender_name: "$.sender.name",
-      sender_address: "$.sender.full_address",
-      receiver_name: "$.receiver.name",
-      receiver_address: "$.receiver.full_address",
-      weight: "$.package.weight_kg",
-      dimensions: "$.package.dimensions_cm",
-      ship_date: "$.dates.shipped",
-      delivery_date: "$.dates.expected_delivery",
-      tracking_number: "$.tracking.id",
-    };
+    // Use the actual OCR output if available, otherwise fall back to sample
+    const dataToAnalyze = ocrOutput || sampleOcrOutput;
+    
+    // Dynamically match field names to JSON paths using fuzzy matching
+    const suggestions = autoSuggestMappings(standardFields, dataToAnalyze);
+    
+    const suggestedCount = Object.keys(suggestions).length;
+    
+    if (suggestedCount === 0) {
+      toast({
+        title: "No Suggestions Found",
+        description: "Could not find matching JSON paths for the fields. Try uploading a document first.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setMappings((prev) => {
       const updated = { ...prev };
       Object.entries(suggestions).forEach(([fieldId, jsonPath]) => {
+        // Only suggest for unmapped fields
         if (!updated[fieldId]?.jsonPath) {
           updated[fieldId] = { ...updated[fieldId], jsonPath, mandatory: updated[fieldId]?.mandatory ?? false };
         }
@@ -207,7 +212,7 @@ export default function ConfigWorkspace() {
 
     toast({
       title: "Auto-Suggest Complete",
-      description: "Mappings have been suggested based on OCR output structure.",
+      description: `Suggested ${suggestedCount} mappings based on ${ocrOutput ? "your OCR output" : "sample data"}.`,
     });
   };
 
