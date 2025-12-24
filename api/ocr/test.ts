@@ -39,9 +39,12 @@ export default async function handler(req: Request) {
     const mimeType = file.type || 'image/jpeg';
     const imageUrl = `data:${mimeType};base64,${base64}`;
 
-    const prompt = overridePrompt || `Extract all relevant data from this document as structured JSON. 
-Include fields like: shipment ID, sender/receiver details, addresses, dates, weights, tracking numbers, and any line items.
-Return only valid JSON without markdown formatting.`;
+    const defaultPrompt = `Extract all relevant data from this document as structured JSON. 
+Include fields like: shipment ID, sender/receiver details, addresses, dates, weights, tracking numbers, and any line items.`;
+    
+    // Always append JSON instruction to satisfy OpenAI's requirement for json_object response format
+    const basePrompt = overridePrompt || defaultPrompt;
+    const prompt = `${basePrompt}\n\nIMPORTANT: Return the response as valid JSON only. No markdown, no code blocks, just raw JSON.`;
 
     const openai = new OpenAI({ apiKey });
 

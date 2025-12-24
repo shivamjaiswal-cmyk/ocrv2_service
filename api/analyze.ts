@@ -28,13 +28,16 @@ export default async function handler(req: Request) {
         // OpenAI expects "data:image/jpeg;base64,{base64_image}"
         const imageUrl = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
 
+        // Ensure prompt contains "JSON" to satisfy OpenAI's json_object response format requirement
+        const fullPrompt = `${prompt || 'Extract all data from this document.'}\n\nIMPORTANT: Return the response as valid JSON only. No markdown, no code blocks, just raw JSON object.`;
+
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
                 {
                     role: "user",
                     content: [
-                        { type: "text", text: `${prompt}\n\nPlease provide the output in strict JSON format. Do not include markdown formatting (like \`\`\`json). Just the raw JSON object.` },
+                        { type: "text", text: fullPrompt },
                         {
                             type: "image_url",
                             image_url: {
